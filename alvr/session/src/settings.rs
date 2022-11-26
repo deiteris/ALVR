@@ -694,7 +694,7 @@ pub fn session_settings_default() -> SettingsDefault {
             },
             seconds_from_vsync_to_photons: 0.005,
             foveated_rendering: SwitchDefault {
-                enabled: !cfg!(target_os = "linux"),
+                enabled: true,
                 content: FoveatedRenderingDescDefault {
                     center_size_x: 0.4,
                     center_size_y: 0.35,
@@ -874,7 +874,7 @@ pub fn session_settings_default() -> SettingsDefault {
             exclude_notifications_without_id: false,
             patches: PatchesDefault {
                 remove_sync_popup: false,
-                linux_async_reprojection: true,
+                linux_async_reprojection: false,
             },
         },
     }

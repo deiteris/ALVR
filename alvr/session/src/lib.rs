@@ -121,6 +121,7 @@ pub struct OpenvrConfig {
 #[serde(rename_all = "camelCase")]
 pub struct ClientConnectionDesc {
     pub display_name: String,
+    pub current_ip: Option<IpAddr>,
     pub manual_ips: HashSet<IpAddr>,
     pub trusted: bool,
 }
@@ -167,7 +168,7 @@ impl Default for SessionDesc {
                 controllers_enabled: false,
                 enable_foveated_rendering: false,
                 enable_color_correction: false,
-                linux_async_reprojection: true,
+                linux_async_reprojection: false,
                 ..<_>::default()
             },
             client_connections: HashMap::new(),

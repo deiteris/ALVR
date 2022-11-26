@@ -85,6 +85,11 @@ static COMPRESS_AXIS_ALIGNED_CSO: &[u8] =
 static COLOR_CORRECTION_CSO: &[u8] =
     include_bytes!("../cpp/platform/win32/ColorCorrectionPixelShader.cso");
 
+static QUAD_SHADER_VERT_SPV: &[u8] = include_bytes!("../cpp/platform/linux/shader/quad.vert.spv");
+static QUAD_SHADER_FRAG_SPV: &[u8] = include_bytes!("../cpp/platform/linux/shader/quad.frag.spv");
+static COLOR_SHADER_FRAG_SPV: &[u8] = include_bytes!("../cpp/platform/linux/shader/color.frag.spv");
+static FFR_SHADER_FRAG_SPV: &[u8] = include_bytes!("../cpp/platform/linux/shader/ffr.frag.spv");
+
 static IS_ALIVE: Lazy<Arc<RelaxedAtomic>> = Lazy::new(|| Arc::new(RelaxedAtomic::new(false)));
 
 pub enum WindowType {
@@ -176,8 +181,13 @@ pub fn notify_application_update() {
 
 fn init() {
     let (log_sender, _) = broadcast::channel(web_server::WS_BROADCAST_CAPACITY);
+    let (legacy_events_sender, _) = broadcast::channel(web_server::WS_BROADCAST_CAPACITY);
     let (events_sender, _) = broadcast::channel(web_server::WS_BROADCAST_CAPACITY);
-    logging_backend::init_logging(log_sender.clone(), events_sender.clone());
+    logging_backend::init_logging(
+        log_sender.clone(),
+        legacy_events_sender.clone(),
+        events_sender.clone(),
+    );
 
     if let Some(runtime) = WEBSERVER_RUNTIME.lock().as_mut() {
         // Acquire and drop the data manager lock to create session.json if not present
@@ -199,6 +209,7 @@ fn init() {
 
         runtime.spawn(alvr_common::show_err_async(web_server::web_server(
             log_sender,
+            legacy_events_sender,
             events_sender,
         )));
 
@@ -220,6 +231,10 @@ fn init() {
             let mut session_ref = data_manager.session_mut();
             session_ref.server_version = ALVR_VERSION.clone();
             session_ref.client_connections.clear();
+        }
+
+        for conn in data_manager.session_mut().client_connections.values_mut() {
+            conn.current_ip = None;
         }
     }
 
@@ -257,6 +272,14 @@ pub unsafe extern "C" fn HmdDriverFactory(
     COMPRESS_AXIS_ALIGNED_CSO_LEN = COMPRESS_AXIS_ALIGNED_CSO.len() as _;
     COLOR_CORRECTION_CSO_PTR = COLOR_CORRECTION_CSO.as_ptr();
     COLOR_CORRECTION_CSO_LEN = COLOR_CORRECTION_CSO.len() as _;
+    QUAD_SHADER_VERT_SPV_PTR = QUAD_SHADER_VERT_SPV.as_ptr();
+    QUAD_SHADER_VERT_SPV_LEN = QUAD_SHADER_VERT_SPV.len() as _;
+    QUAD_SHADER_FRAG_SPV_PTR = QUAD_SHADER_FRAG_SPV.as_ptr();
+    QUAD_SHADER_FRAG_SPV_LEN = QUAD_SHADER_FRAG_SPV.len() as _;
+    COLOR_SHADER_FRAG_SPV_PTR = COLOR_SHADER_FRAG_SPV.as_ptr();
+    COLOR_SHADER_FRAG_SPV_LEN = COLOR_SHADER_FRAG_SPV.len() as _;
+    FFR_SHADER_FRAG_SPV_PTR = FFR_SHADER_FRAG_SPV.as_ptr();
+    FFR_SHADER_FRAG_SPV_LEN = FFR_SHADER_FRAG_SPV.len() as _;
 
     unsafe extern "C" fn log_error(string_ptr: *const c_char) {
         alvr_common::show_e(CStr::from_ptr(string_ptr).to_string_lossy());

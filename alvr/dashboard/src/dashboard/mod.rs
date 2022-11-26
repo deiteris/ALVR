@@ -9,7 +9,7 @@ use crate::{
     theme,
     translation::{self, TranslationBundle},
 };
-use alvr_events::{EventSeverity, EventType, LogEvent};
+use alvr_events::{Event, EventSeverity, EventType, LogEvent};
 use alvr_session::{ClientConnectionDesc, LogLevel, SessionDesc};
 use egui::{
     style::Margin, Align, CentralPanel, Context, Frame, Label, Layout, RichText, ScrollArea,
@@ -132,41 +132,40 @@ impl Dashboard {
         theme::set_theme(ctx);
     }
 
-    pub fn new_event(&mut self, event: EventType) {
-        match &event {
+    pub fn new_event(&mut self, event: Event) {
+        match &event.event_type {
             EventType::GraphStatistics(graph_statistics) => self
                 .statistics_tab
                 .update_graph_statistics(graph_statistics.clone()),
             EventType::Statistics(statistics) => {
                 self.statistics_tab.update_statistics(statistics.clone())
             }
-            EventType::Log(log) => {
-                self.logs_tab.update_logs(log.clone());
-                // Create a notification based on the notification level in the settings
-                match self.session.to_settings().extra.notification_level {
-                    LogLevel::Debug => self.notification = Some(log.to_owned()),
-                    LogLevel::Info => match log.severity {
-                        EventSeverity::Info | EventSeverity::Warning | EventSeverity::Error => {
-                            self.notification = Some(log.to_owned())
-                        }
-                        _ => (),
-                    },
-                    LogLevel::Warning => match log.severity {
-                        EventSeverity::Warning | EventSeverity::Error => {
-                            self.notification = Some(log.to_owned())
-                        }
-                        _ => (),
-                    },
-                    LogLevel::Error => match log.severity {
-                        EventSeverity::Error => self.notification = Some(log.to_owned()),
-                        _ => (),
-                    },
-                }
-            }
             EventType::Session(session) => {
                 self.session = session.to_owned();
             }
-            _ => (),
+            _ => {
+                self.logs_tab.update_logs(event.clone());
+                // Create a notification based on the notification level in the settings
+                // match self.session.to_settings().extra.notification_level {
+                //     LogLevel::Debug => self.notification = Some(log.to_owned()),
+                //     LogLevel::Info => match log.severity {
+                //         EventSeverity::Info | EventSeverity::Warning | EventSeverity::Error => {
+                //             self.notification = Some(log.to_owned())
+                //         }
+                //         _ => (),
+                //     },
+                //     LogLevel::Warning => match log.severity {
+                //         EventSeverity::Warning | EventSeverity::Error => {
+                //             self.notification = Some(log.to_owned())
+                //         }
+                //         _ => (),
+                //     },
+                //     LogLevel::Error => match log.severity {
+                //         EventSeverity::Error => self.notification = Some(log.to_owned()),
+                //         _ => (),
+                //     },
+                // }
+            }
         }
     }
 
@@ -238,7 +237,7 @@ impl Dashboard {
                             .frame(
                                 Frame::default()
                                     .inner_margin(Margin::same(5.0))
-                                    .fill(theme::BG)
+                                    .fill(theme::LIGHTER_BG)
                                     .stroke(Stroke::new(1.0, theme::SEPARATOR_BG)),
                             )
                             .show(ctx, |ui| ui.label("No new notifications"));
@@ -248,8 +247,16 @@ impl Dashboard {
                     self.notification = None;
                 }
 
+                let mut outer_margin = Margin::default();
+
                 let response = SidePanel::left("side_panel")
                     .resizable(false)
+                    .frame(
+                        Frame::none()
+                            .fill(theme::LIGHTER_BG)
+                            .inner_margin(Margin::same(7.0))
+                            .stroke(Stroke::new(1.0, theme::SEPARATOR_BG)),
+                    )
                     .max_width(150.0)
                     .show(ctx, |ui| {
                         ui.heading("ALVR");
@@ -277,10 +284,15 @@ impl Dashboard {
                     .inner;
 
                 let response = CentralPanel::default()
+                    .frame(
+                        Frame::none()
+                            .inner_margin(Margin::same(20.0))
+                            .fill(theme::BG),
+                    )
                     .show(ctx, |ui| {
                         ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
                             ui.heading(*self.tab_labels.get(&self.selected_tab).unwrap());
-                            ScrollArea::new([false, true]).show(ui, |ui| match self.selected_tab {
+                            ScrollArea::new([true, true]).show(ui, |ui| match self.selected_tab {
                                 Tab::Connections => self.connections_tab.ui(ui, &self.session),
                                 Tab::Statistics => self.statistics_tab.ui(ui),
                                 Tab::Settings => self.settings_tab.ui(ui, &self.session),

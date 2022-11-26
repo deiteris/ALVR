@@ -135,6 +135,11 @@ fn try_connect(mut client_ips: HashMap<IpAddr, String>) -> IntResult {
     // Safety: this never panics because client_ip is picked from client_ips keys
     let client_hostname = client_ips.remove(&client_ip).unwrap();
 
+    SERVER_DATA_MANAGER.write().update_client_list(
+        client_hostname.clone(),
+        ClientListAction::UpdateCurrentIp(Some(client_ip)),
+    );
+
     let maybe_streaming_caps = if let ClientConnectionResult::ConnectionAccepted {
         display_name,
         streaming_capabilities,
@@ -231,11 +236,7 @@ fn try_connect(mut client_ips: HashMap<IpAddr, String>) -> IntResult {
 
     let client_config = StreamConfigPacket {
         session_desc: {
-            let mut session = SERVER_DATA_MANAGER.read().session().clone();
-            if cfg!(target_os = "linux") {
-                session.session_settings.video.foveated_rendering.enabled = false;
-            }
-
+            let session = SERVER_DATA_MANAGER.read().session().clone();
             serde_json::to_string(&session).map_err(to_int_e!())?
         },
         view_resolution: stream_view_resolution,
@@ -478,26 +479,30 @@ fn try_connect(mut client_ips: HashMap<IpAddr, String>) -> IntResult {
     *STREAMING_CLIENT_HOSTNAME.lock() = Some(client_hostname.clone());
 
     thread::spawn(move || {
-        runtime.block_on(async move {
-            // this is a bridge between sync and async, skips the needs for a notifier
-            let shutdown_detector = async {
-                while IS_ALIVE.value() {
-                    time::sleep(Duration::from_secs(1)).await;
-                }
-            };
+        runtime.block_on({
+            let client_hostname = client_hostname.clone();
+            async move {
+                // this is a bridge between sync and async, skips the needs for a notifier
+                let shutdown_detector = async {
+                    while IS_ALIVE.value() {
+                        time::sleep(Duration::from_secs(1)).await;
+                    }
+                };
 
-            tokio::select! {
-                res = connection_pipeline(
-                    client_ip,
-                    control_sender,
-                    control_receiver,
-                    streaming_caps.microphone_sample_rate,
-                ) => {
-                    show_warn(res);
-                },
-                _ = DISCONNECT_CLIENT_NOTIFIER.notified() => (),
-                _ = shutdown_detector => (),
-            };
+                tokio::select! {
+                    res = connection_pipeline(
+                        client_hostname,
+                        client_ip,
+                        control_sender,
+                        control_receiver,
+                        streaming_caps.microphone_sample_rate,
+                    ) => {
+                        show_warn(res);
+                    },
+                    _ = DISCONNECT_CLIENT_NOTIFIER.notified() => (),
+                    _ = shutdown_detector => (),
+                };
+            }
         });
 
         {
@@ -541,6 +546,7 @@ impl Drop for StreamCloseGuard {
 }
 
 async fn connection_pipeline(
+    client_hostname: String,
     client_ip: IpAddr,
     control_sender: ControlSocketSender<ServerControlPacket>,
     mut control_receiver: ControlSocketReceiver<ClientControlPacket>,
@@ -1002,6 +1008,9 @@ async fn connection_pipeline(
                     };
 
                     unsafe { crate::SetButton(path_id, value) };
+                }
+                Ok(ClientControlPacket::Log { level, message }) => {
+                    info!("Client {client_hostname}: [{level:?}] {message}")
                 }
                 Ok(_) => (),
                 Err(e) => {

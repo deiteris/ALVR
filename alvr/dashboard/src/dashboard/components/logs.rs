@@ -1,36 +1,36 @@
 use std::collections::VecDeque;
 
 use crate::dashboard::DashboardResponse;
-use alvr_events::LogEvent;
+use alvr_events::Event;
 use egui::{ScrollArea, Ui};
 
 pub struct LogsTab {
-    logs: VecDeque<LogEvent>,
+    events: VecDeque<Event>,
     log_limit: usize,
 }
 
 impl LogsTab {
     pub fn new() -> Self {
         Self {
-            logs: VecDeque::new(),
+            events: VecDeque::new(),
             log_limit: 1000,
         }
     }
 
-    pub fn update_logs(&mut self, log: LogEvent) {
-        if self.logs.len() >= self.log_limit {
-            self.logs.pop_front();
+    pub fn update_logs(&mut self, event: Event) {
+        if self.events.len() >= self.log_limit {
+            self.events.pop_front();
         }
-        self.logs.push_back(log);
+        self.events.push_back(event);
     }
 
     pub fn ui(&self, ui: &mut Ui) -> Option<DashboardResponse> {
         ui.centered_and_justified(|ui| {
             ScrollArea::both().show(ui, |ui| {
-                for log in &self.logs {
+                for event in &self.events {
                     ui.horizontal(|ui| {
-                        ui.monospace(&log.timestamp);
-                        ui.monospace(&log.content);
+                        ui.monospace(&event.timestamp);
+                        ui.monospace(&format!("{:?}", event.event_type));
                     });
                 }
             });
