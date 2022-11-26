@@ -20,9 +20,13 @@ public:
 	virtual ~AMFPipe();
 
 	void doPassthrough();
+	AMF_RESULT getOutputStatus() { return m_outputStatus; };
+	AMF_RESULT getInputStatus() { return m_inputStatus; };
 protected:
 	amf::AMFComponentPtr m_amfComponentSrc;
 	AMFDataReceiver m_receiver;
+	AMF_RESULT m_outputStatus;
+	AMF_RESULT m_inputStatus;
 };
 
 typedef AMFPipe* AMFPipePtr;
@@ -47,7 +51,6 @@ public:
 	void RunReceive();
 protected:
 	std::thread *m_thread;
-	std::thread *m_receiveThread;
 	std::vector<AMFPipePtr> m_pipes;
 	bool isRunning;
 };
