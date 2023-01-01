@@ -350,10 +350,8 @@ pub unsafe extern "C" fn HmdDriverFactory(
                 packet_counter: header.packetCounter,
                 tracking_frame_index: header.trackingFrameIndex,
                 video_frame_index: header.videoFrameIndex,
-                sent_time: header.sentTime,
                 frame_byte_size: header.frameByteSize,
                 fec_index: header.fecIndex,
-                fec_percentage: header.fecPercentage,
             };
 
             let mut vec_buffer = vec![0; len as _];
@@ -439,9 +437,9 @@ pub unsafe extern "C" fn HmdDriverFactory(
         }
     }
 
-    extern "C" fn report_fec_failure(percentage: i32) {
+    extern "C" fn report_fec_failure() {
         if let Some(stats) = &mut *STATISTICS_MANAGER.lock() {
-            stats.report_fec_failure(percentage as u32);
+            stats.report_fec_failure();
         }
     }
 
