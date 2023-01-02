@@ -9,11 +9,11 @@ mod c_api;
 mod connection;
 mod decoder;
 mod logging_backend;
-mod video_frame_buffer;
 mod platform;
 mod sockets;
 mod statistics;
 mod storage;
+mod video_frame_buffer;
 
 #[cfg(target_os = "android")]
 mod audio;
@@ -35,7 +35,6 @@ use alvr_sockets::{
     BatteryPacket, ClientControlPacket, ClientStatistics, Fov, Tracking, ViewsConfig,
 };
 use decoder::EXTERNAL_DECODER;
-use video_frame_buffer::VideoFrameBuffer;
 use serde::{Deserialize, Serialize};
 use statistics::StatisticsManager;
 use std::{
@@ -45,6 +44,7 @@ use std::{
 };
 use storage::Config;
 use tokio::{sync::mpsc, sync::Notify};
+use video_frame_buffer::VideoFrameBuffer;
 
 static STATISTICS_MANAGER: Lazy<Mutex<Option<StatisticsManager>>> = Lazy::new(|| Mutex::new(None));
 
