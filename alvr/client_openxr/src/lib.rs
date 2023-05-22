@@ -777,9 +777,6 @@ pub fn entry_point() {
             let left_swapchain_idx = swapchains[0].acquire_image().unwrap();
             let right_swapchain_idx = swapchains[1].acquire_image().unwrap();
 
-            swapchains[0].wait_image(xr::Duration::INFINITE).unwrap();
-            swapchains[1].wait_image(xr::Duration::INFINITE).unwrap();
-
             let display_time;
             let views;
             let view_resolution;
@@ -815,10 +812,14 @@ pub fn entry_point() {
                     last_good_views.clone()
                 };
 
+                swapchains[0].wait_image(xr::Duration::INFINITE).unwrap();
+                swapchains[1].wait_image(xr::Duration::INFINITE).unwrap();
                 alvr_client_core::opengl::render_stream(
                     hardware_buffer,
                     [left_swapchain_idx, right_swapchain_idx],
                 );
+                swapchains[0].release_image().unwrap();
+                swapchains[1].release_image().unwrap();
 
                 if !hardware_buffer.is_null() {
                     if let Some(now) = xr_runtime_now(&xr_instance, platform) {
@@ -843,6 +844,8 @@ pub fn entry_point() {
 
                 view_resolution = recommended_view_resolution;
 
+                swapchains[0].wait_image(xr::Duration::INFINITE).unwrap();
+                swapchains[1].wait_image(xr::Duration::INFINITE).unwrap();
                 alvr_client_core::opengl::render_lobby([
                     RenderViewInput {
                         pose: to_pose(views[0].pose),
@@ -855,10 +858,9 @@ pub fn entry_point() {
                         swapchain_index: right_swapchain_idx,
                     },
                 ]);
+                swapchains[0].release_image().unwrap();
+                swapchains[1].release_image().unwrap();
             }
-
-            swapchains[0].release_image().unwrap();
-            swapchains[1].release_image().unwrap();
 
             let rect = xr::Rect2Di {
                 offset: xr::Offset2Di { x: 0, y: 0 },
